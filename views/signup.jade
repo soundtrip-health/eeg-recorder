@@ -1,0 +1,14 @@
+extends layout
+
+block content
+  h1 Signup
+  form(action="/signup", method="post")
+     legend Email 
+         input(type="email" placeholder="Enter Email ID" id='email' name="email" required)
+         br
+     legend Password 
+         input(type="password" placeholder="Enter Password" id='password' name='password' required)
+         br
+     input(type="hidden" name="_csrf" value= csrfToken)
+     input(type="submit" value="Login")
+
