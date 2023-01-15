@@ -2,20 +2,20 @@ extends layout
 
 block content
   h1 LOGIN
-  
+ 
   if messages.error 
       p!= messages.error
   
   form(action="/login", method="post")
-      legend Email 
-          input(type="email" placeholder="Enter Email ID" id='email' name="email" required)
+      legend User Name 
+          input(type="text" placeholder="Enter Username" id="username" name="username" required)
           br
       legend Password 
-          input(type="password" placeholder="Enter Password" id='password' name='password' required)
+          input(type="password" placeholder="Enter Password" id="password" name="password" required)
           br
       input(type="hidden" name="_csrf" value= csrfToken)
       input(type="submit" value="Login")
   
-  p Or create new Account   
-  a(href="/signup") sign up
+  //p Or create new Account   
+  //a(href="/signup") sign up
 

@@ -41,10 +41,6 @@ passport.use(new LocalStrategy(function verify(username, password, cb) {
  * by verifying the session.  The same user information that was serialized at
  * session establishment will be restored when the session is authenticated by
  * the `deserializeUser` function.
- *
- * Since every request to the app needs the user ID and username, in order to
- * fetch todo records and render the user element in the navigation bar, that
- * information is stored in the session.
  */
 passport.serializeUser(function(user, cb) {
   process.nextTick(function() {
@@ -89,7 +85,7 @@ router.get('/login', function(req, res, next) {
  * When authentication fails, the user will be re-prompted to login and shown
  * a message informing them of what went wrong.
  */
-router.post('/login/password', passport.authenticate('local', {
+router.post('/login', passport.authenticate('local', {
   successReturnToOrRedirect: '/',
   failureRedirect: '/login',
   failureMessage: true
@@ -106,27 +102,16 @@ router.post('/logout', function(req, res, next) {
   });
 });
 
-/* GET /signup
- *
- * This route prompts the user to sign up.
- *
- * The 'signup' view renders an HTML form, into which the user enters their
- * desired username and password.  When the user submits the form, a request
- * will be sent to the `POST /signup` route.
- */
+/*
+ DISABLE SIGNUP
+ TODO: allow an authenticated user to create a new account?
+
+// GET /signup: prompts the user to sign up.
 router.get('/signup', function(req, res, next) {
   res.render('signup', {title: "Sign Up"});
 });
 
-/* POST /signup
- *
- * This route creates a new user account.
- *
- * A desired username and password are submitted to this route via an HTML form,
- * which was rendered by the `GET /signup` route.  The password is hashed and
- * then a new user record is inserted into the database.  If the record is
- * successfully created, the user is logged in.
- */
+// POST /signup: creates a new user account.
 router.post('/signup', function(req, res, next) {
   var salt = crypto.randomBytes(16);
   crypto.pbkdf2(req.body.password, salt, 310000, 32, 'sha256', function(err, hashedPassword) {
@@ -148,5 +133,6 @@ router.post('/signup', function(req, res, next) {
     });
   });
 });
+*/
 
 module.exports = router;

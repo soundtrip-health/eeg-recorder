@@ -1,6 +1,12 @@
 extends layout
 
+block javascript
+  script(src="/js/app.js")
+
 block content
   h1 EEG Recorder
   p Welcome #{user}
 
+- var hs_ids = Array.from({length: #{num_headsets}}, (_, i) => i + 1)
+  for val in values
+    button(type="button" id="mybutton" onclick="connect(#{val}")
