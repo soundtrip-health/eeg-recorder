@@ -17,14 +17,29 @@ var router = express.Router();
 
 var ensureLoggedIn = ensureLogIn();
 
-/* GET home page. */
-router.get('/', function(req, res, next) {
-  console.log("req.user: ");
-  console.dir(req.user);
+// GET home page
+router.get('/', ensureLoggedIn, function(req, res, next) {
+  console.log("req.user: "); console.dir(req.user);
   if (!req.user) 
     return res.render('login');
   console.log(req.user);
-  res.render('index', {user: req.user.name, title: "Home", num_headsets: 3});
+  res.render('index', {user: req.user.username, title: "Home", num_headsets: 3});
+});
+
+
+// POST data
+router.post('/', ensureLoggedIn, function(req, res, next) {
+  req.body.title = req.body.title.trim();
+  next();
+}, function(req, res, next) {
+  db.run('INSERT INTO data (user_id, filename, upload_ts) VALUES (?, ?, ?)', [
+    req.user.id,
+    req.body.filename,
+    Math.round(Date.now() / 1000)
+  ], function(err) {
+    if (err) { return next(err); }
+    return res.redirect('/');
+  });
 });
 
 module.exports = router;

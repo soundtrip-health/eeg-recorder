@@ -33,7 +33,7 @@ db.serialize(function() {
     id INTEGER PRIMARY KEY, \
     user_id INTEGER NOT NULL, \
     filename TEXT NOT NULL, \
-    uploaded INTEGER \
+    upload_ts INTEGER \
   )");
   
   // default users to populate the users db
