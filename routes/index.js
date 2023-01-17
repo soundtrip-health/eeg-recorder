@@ -1,6 +1,8 @@
-var express = require('express');
-var ensureLogIn = require('connect-ensure-login').ensureLoggedIn;
-var db = require('../db');
+const express = require('express');
+const ensureLogIn = require('connect-ensure-login').ensureLoggedIn;
+const db = require('../db');
+const fs = require('fs');
+const path = require('node:path');
 
 let CalculateRMS = function (arr) {
 
@@ -19,27 +21,35 @@ var ensureLoggedIn = ensureLogIn();
 
 // GET home page
 router.get('/', ensureLoggedIn, function(req, res, next) {
-  console.log("req.user: "); console.dir(req.user);
   if (!req.user) 
     return res.render('login');
   console.log(req.user);
-  res.render('index', {user: req.user.username, title: "Home", num_headsets: 3});
+  res.render('index', {user: req.user, title: "Home", num_headsets: 3});
 });
 
 
 // POST data
-router.post('/', ensureLoggedIn, function(req, res, next) {
-  req.body.title = req.body.title.trim();
-  next();
-}, function(req, res, next) {
-  db.run('INSERT INTO data (user_id, filename, upload_ts) VALUES (?, ?, ?)', [
+// TOKEN="dNNLFbGd-Ew_2I5H6hjamKRt0R8htlt7qE5Q"
+// curl -X POST http://localhost:3000/data -H 'Content-Type: application/json' -H X-CSRF-Token: ${TOKEN}' -d '{"foo":1, "bar":"two"}'
+router.post('/data', function(req, res, next) {
+  //console.log(req.body);
+  const filename = path.join(db.data_dir, req.user.username + '_' + req.body.start_ts + '.json')
+  fs.writeFile(filename, JSON.stringify(req.body), 'utf8', err => {
+    if (err) {
+      console.error(err);
+    }
+    console.log('file saved to ' + filename + '.');
+  });
+/*
+  db.database.run('INSERT INTO data (user_id, data, upload_ts) VALUES (?, ?, ?)', [
     req.user.id,
-    req.body.filename,
+    filename,
     Math.round(Date.now() / 1000)
   ], function(err) {
     if (err) { return next(err); }
     return res.redirect('/');
   });
+*/
 });
 
 module.exports = router;

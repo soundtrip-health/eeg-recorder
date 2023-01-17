@@ -1,9 +1,9 @@
-var express = require('express');
-var passport = require('passport');
-var LocalStrategy = require('passport-local');
-var crypto = require('crypto');
-var db = require('../db');
-
+const express = require('express');
+const passport = require('passport');
+const LocalStrategy = require('passport-local');
+const crypto = require('crypto');
+const db = require('../db');
+//const jwt = require('jsonwebtoken');
 
 /* Configure password authentication strategy.
  *
@@ -16,11 +16,11 @@ var db = require('../db');
  * the hashed password stored in the database.  If the comparison succeeds, the
  * user is authenticated; otherwise, not.
  */
-passport.use(new LocalStrategy(function verify(username, password, cb) {
-  db.get('SELECT * FROM users WHERE username = ?', [ username ], function(err, row) {
+//passport.use(new LocalStrategy(function verify(username, password, cb) {
+passport.use(new LocalStrategy(async (username, password, cb) => {
+  db.database.get('SELECT * FROM users WHERE username = ?', [ username ], function(err, row) {
     if (err) { return cb(err); }
     if (!row) { return cb(null, false, { message: 'Incorrect username or password.' }); }
-    
     crypto.pbkdf2(password, row.salt, 310000, 32, 'sha256', function(err, hashedPassword) {
       if (err) { return cb(err); }
       if (!crypto.timingSafeEqual(row.hashed_password, hashedPassword)) {
@@ -30,6 +30,7 @@ passport.use(new LocalStrategy(function verify(username, password, cb) {
     });
   });
 }));
+
 
 /* Configure session management.
  *
@@ -90,6 +91,7 @@ router.post('/login', passport.authenticate('local', {
   failureRedirect: '/login',
   failureMessage: true
 }));
+
 
 /* GET /logout
  *

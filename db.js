@@ -3,6 +3,13 @@ const mkdirp = require('mkdirp');
 const crypto = require('crypto');
 const fs = require('fs');
 
+const DATA_DIR = './data';
+try {
+  fs.mkdirSync(DATA_DIR, {recursive: true});
+} catch(err) {
+  console.log(err);
+}
+
 const csvToArray = (data) => {
   const re = /(,|\r?\n|\r|^)(?:"([^"]*(?:""[^"]*)*)"|([^,\r\n]*))/gi
   const result = [[]]
@@ -32,7 +39,7 @@ db.serialize(function() {
   db.run("CREATE TABLE IF NOT EXISTS metadata ( \
     id INTEGER PRIMARY KEY, \
     user_id INTEGER NOT NULL, \
-    filename TEXT NOT NULL, \
+    data TEXT NOT NULL, \
     upload_ts INTEGER \
   )");
   
@@ -53,4 +60,4 @@ db.serialize(function() {
 
 });
 
-module.exports = db;
+module.exports = {database: db, data_dir: DATA_DIR};

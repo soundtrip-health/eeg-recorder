@@ -6,11 +6,14 @@ block javascript
 block content
   h1 EEG Recorder
   p Welcome #{user}
-
-  //- var hs_ids = Array.from({length: num_headsets}, (_, i) => i + 1)
-  //for hsid in hs_ids
-  //  button(type="button" class="c-btn-blue" id="mybutton"  onclick="connect("+hsid+")") Connect #{hsid}
-  button(type="button" id="mybutton"  onclick="connect()") Connect #{hsid}
+  div(id="outer")
+    //- var hs_ids = Array.from({length: num_headsets}, (_, i) => i + 1)
+    //for hsid in hs_ids
+    //  button(type="button" class="c-btn-blue" id="mybutton"  onclick="connect("+hsid+")") Connect
+    div(class="inner")
+      button(type="button" id="connect"  onclick="connect()") #[span(class="glyphicon glyphicon-off")]Connect
+    div(class="inner")
+      button(type="button" id="toggle_record" onclick="toggle_record()") #[span(id="record_button") Start Recording]
 
   div 
     p Name: #[span(id="headset-name") NA], Firmware: #[span(id="firmware-version") NA], Hardware: #[span(id="hardware-version") NA]. 

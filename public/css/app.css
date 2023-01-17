@@ -30,7 +30,7 @@
 }
 
 .nav button {
-	height: 40px;
+	height: 30px;
 }
 
 .nav button:hover {
@@ -57,4 +57,12 @@ canvas {
     background: #BBB;
     border: solid black 1px;
 }
-
+#outer
+{
+    width:100%;
+    text-align: center;
+}
+.inner
+{
+    display: inline-block;
+}

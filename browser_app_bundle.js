@@ -1,8 +1,19 @@
-const Muse = require('muse-js') // this node.js style import needs to be browserified
+// this file needs to be browserified
 // $ browserify browser_app_bundle.js -o ./public/js/app.js
 // This will bundle all of the necessary dependencies
+const Muse = require('muse-js') 
+const request = require('request');
+const url = require('url');
+
+// The token is stored in a meta field in the layout.jade view
+//console.log('csrf token: ' + document.querySelector('meta[name="token"]').content);
 
 const BLINK_THRESHOLD = 95;
+let recording = false;
+var data = {"start_ts": null, "end_ts": null, "metadata": null, "eeg": [[], [], [], []], "ppg": [], "accel": []};
+
+const DATA_URL = url.resolve(document.location.href, '/data');
+console.log(DATA_URL);
 
 let CalculateRMS = function (arr) {
   // calculate the root mean squared of an array
@@ -43,8 +54,7 @@ async function main() {
     context.fillStyle = color;
     context.clearRect(0, 0, canvas.width, canvas.height);
   
-    // loop through each eeg reading (15 per array) and create a rectangle cooresponding
-    // to the appropriate voltage
+    // loop through each eeg reading (15 per array) and create a rectangle to visualize the voltage
     for (let i = 0; i < reading.samples.length; i++) {
       const sample = reading.samples[i] / 10.;
       if (sample > 0) {
@@ -59,10 +69,13 @@ async function main() {
   let client = new Muse.MuseClient();
   client.enableAux = false;
   client.enablePpg = true;
-  client.connectionStatus.subscribe((status) => {console.log(status ? 'Connected!' : 'Disconnected');});
+  client.connectionStatus.subscribe((status) => {
+    console.log(status ? 'Connected!' : 'Disconnected');
+  });
   await client.connect();
   await client.start();
   document.getElementById("headset-name").innerText = client.deviceName;
+  //document.getElementById('record_button').disabled = false;
 
   var last_frame = 0.0;
   const iter_update = 20;
@@ -92,11 +105,10 @@ async function main() {
       last_frame = window.performance.now();
     }
     plot(reading);
-    if (recording === true) {
-      storedResults[reading.electrode].push(CalculateRMS(reading.samples));
+    if (recording) {
+      data['eeg'][reading.electrode].push(reading);
     }
   });
-
   client.telemetryData.subscribe((reading) => {
       document.getElementById('temperature').innerText = reading.temperature.toString() + '℃';
       document.getElementById('batteryLevel').innerText = reading.batteryLevel.toFixed(2) + '%';
@@ -104,25 +116,56 @@ async function main() {
   await client.deviceInfo().then((deviceInfo) => {
       document.getElementById('hardware-version').innerText = deviceInfo.hw;
       document.getElementById('firmware-version').innerText = deviceInfo.fw;
+      data.metadata = deviceInfo;
+      data.metadata.userid = document.querySelector('meta[name="userid"]').content;
+      data.metadata.username = document.querySelector('meta[name="username"]').content;
   });
   client.accelerometerData.subscribe((accel) => {
       document.getElementById('acc-x').innerText = accel.samples[2].x.toFixed(3);
       document.getElementById('acc-y').innerText = accel.samples[2].y.toFixed(3);
       document.getElementById('acc-z').innerText = accel.samples[2].z.toFixed(3);
+      if(recording) {
+        data['accel'].push(accel);
+      }
   });
   client.ppgReadings.subscribe((ppgreading) => {
-      //console.log(ppgreading);
       document.getElementById('ppg' + ppgreading.ppgChannel).innerText = average(ppgreading.samples).toFixed(0);
-
+      if(recording) {
+        data['ppg'].push(ppgreading);
+      }
   });
 }
 
-window.record = function () {
-  recording = true
-}
-
-window.stop = function () {
-  recording = false
+window.toggle_record = function () {
+  const button = document.getElementById('record_button');
+  if(recording) {
+    console.log("stopping recording");
+    recording = false;
+    button.innerText = "Start Recording";
+    //button.style.backgroundColor = "#232";
+    data.end_ts = Date.now();
+    request({
+	    url: DATA_URL,
+	    method: "POST",
+	    body: {_csrf: document.querySelector('meta[name="token"]').content},
+	    json: data, 
+	    headers: {'X-CSRF-Token': document.querySelector('meta[name="token"]').content}
+	    },
+      function (error, response, body) {
+        if (!error && response.statusCode === 200) {
+          console.log(body)
+	} else {
+            console.log("error: " + error)
+        }
+      });
+    data = {"start_ts": null, "end_ts": null, "metadata": data.metadata, "eeg": [[], [], [], []], "ppg": [], "accel": []}; 
+  } else {
+    console.log("starting recording");
+    recording = true;
+    button.innerText = "Stop Recording";
+    //button.style.backgroundColor = "#A23";
+    data['start_ts'] = Date.now();
+  }
 }
 
 
@@ -131,7 +174,4 @@ window.stop = function () {
 window.connect = function () {
   main();
 }
-
-let recording = false;
-var storedResults = [[], [], [], []]
 
