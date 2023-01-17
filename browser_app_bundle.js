@@ -34,14 +34,10 @@ async function main() {
 
   // Simple function to take the average of an array
   const average = arr => arr.reduce( ( p, c ) => p + c, 0 ) / arr.length;
-  // for each 15 element array returned by the eegReading, adjust the appropriate canvas with a 
-  // histogram like plot
+  // for each 12-element eegReading array, adjust the appropriate canvas with a simple plot
   function plot(reading) {
-    // identify the appropriate plot for the current electrode reading
     const canvas = canvases[reading.electrode];
     const context = canvasCtx[reading.electrode];
-  
-    // escape the function if the electrode is invalid
     if (!context) {
       return;
     }
@@ -54,7 +50,7 @@ async function main() {
     context.fillStyle = color;
     context.clearRect(0, 0, canvas.width, canvas.height);
   
-    // loop through each eeg reading (15 per array) and create a rectangle to visualize the voltage
+    // loop through each eeg reading (12 per array) and create a rectangle to visualize the voltage
     for (let i = 0; i < reading.samples.length; i++) {
       const sample = reading.samples[i] / 10.;
       if (sample > 0) {
@@ -83,7 +79,7 @@ async function main() {
   var iter = 0;
 
   client.eegReadings.subscribe(reading => {
-    rmsFields[reading.electrode].textContent = CalculateRMS(reading.samples).toString()
+    rmsFields[reading.electrode].textContent = CalculateRMS(reading.samples).toFixed(1)
     if (reading.electrode === 1) {
       // Update blink status
       if (Math.max.apply(null, reading.samples) >= BLINK_THRESHOLD) {
@@ -110,12 +106,12 @@ async function main() {
     }
   });
   client.telemetryData.subscribe((reading) => {
-      document.getElementById('temperature').innerText = reading.temperature.toString() + '℃';
+      //document.getElementById('temperature').innerText = reading.temperature.toString() + '℃';
       document.getElementById('batteryLevel').innerText = reading.batteryLevel.toFixed(2) + '%';
   });
   await client.deviceInfo().then((deviceInfo) => {
-      document.getElementById('hardware-version').innerText = deviceInfo.hw;
-      document.getElementById('firmware-version').innerText = deviceInfo.fw;
+      //document.getElementById('hardware-version').innerText = deviceInfo.hw;
+      //document.getElementById('firmware-version').innerText = deviceInfo.fw;
       data.metadata = deviceInfo;
       data.metadata.userid = document.querySelector('meta[name="userid"]').content;
       data.metadata.username = document.querySelector('meta[name="username"]').content;
@@ -129,7 +125,7 @@ async function main() {
       }
   });
   client.ppgReadings.subscribe((ppgreading) => {
-      document.getElementById('ppg' + ppgreading.ppgChannel).innerText = average(ppgreading.samples).toFixed(0);
+      //document.getElementById('ppg' + ppgreading.ppgChannel).innerText = average(ppgreading.samples).toFixed(0);
       if(recording) {
         data['ppg'].push(ppgreading);
       }
