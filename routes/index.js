@@ -33,7 +33,13 @@ router.get('/', ensureLoggedIn, function(req, res, next) {
 // curl -X POST http://localhost:3000/data -H 'Content-Type: application/json' -H X-CSRF-Token: ${TOKEN}' -d '{"foo":1, "bar":"two"}'
 router.post('/data', function(req, res, next) {
   //console.log(req.body);
-  const filename = path.join(db.data_dir, req.user.username + '_' + req.body.start_ts + '.json')
+  const user_dir = path.join(db.data_dir, req.user.username);
+  try {
+    fs.mkdirSync(user_dir, {recursive: true});
+  } catch(err) {
+    console.log(err);
+  }
+  const filename = path.join(user_dir, req.user.username + '_' + req.body.start_ts + '.json')
   fs.writeFile(filename, JSON.stringify(req.body), 'utf8', err => {
     if (err) {
       console.error(err);
@@ -52,4 +58,11 @@ router.post('/data', function(req, res, next) {
 */
 });
 
+router.get('/data', function(req, res, next) {
+  const user_dir = path.join(db.data_dir, req.user.username);
+  fs.readdir(user_dir, (err, files) => {
+    console.dir(files);
+    res.render('data', {user: req.user, title: "Data", files: files});
+  });
+});
 module.exports = router;

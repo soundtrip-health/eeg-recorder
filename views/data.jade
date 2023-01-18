@@ -1,0 +1,12 @@
+extends layout
+
+block javascript
+  script(src="/js/app.js")
+
+block content
+  h1 EEG Recorder Data
+  p Data for #{user.username}
+  ul
+    for fn in files
+      li #{fn}
+

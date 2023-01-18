@@ -19,7 +19,7 @@ const indexRouter = require('./routes/index');
 const authRouter = require('./routes/auth');
 
 var app = express();
-app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.urlencoded({limit: JSON_PAYLOAD_MAX, extended: true}));
 app.use(bodyParser.json({limit: JSON_PAYLOAD_MAX, extended: true}))
 
 // view engine setup
