@@ -13,15 +13,12 @@ let recording = false;
 var data = {"start_ts": null, "end_ts": null, "metadata": null, "eeg": [[], [], [], []], "ppg": [], "accel": []};
 
 const DATA_URL = url.resolve(document.location.href, '/data');
-console.log(DATA_URL);
+//console.log(DATA_URL);
 
 let CalculateRMS = function (arr) {
-  // calculate the root mean squared of an array
-  let Squares = arr.map((val) => (val * val));
-  let Sum = Squares.reduce((acum, val) => (acum + val));
-
-  Mean = Sum / arr.length;
-  return Math.sqrt(Mean);
+  // calculate the root mean sum-of-squares of an array
+  let sum_squares = arr.map((val) => (val * val)).reduce((acum, val) => (acum + val));
+  return Math.sqrt(sum_squares / arr.length);
 }
 
 async function main() {
@@ -136,6 +133,7 @@ window.toggle_record = function () {
   const button = document.getElementById('record_button');
   if(recording) {
     console.log("stopping recording");
+    document.getElementById('status').innerText = "Recording stopped";
     recording = false;
     button.innerText = "Start Recording";
     //button.style.backgroundColor = "#232";
@@ -149,14 +147,17 @@ window.toggle_record = function () {
 	    },
       function (error, response, body) {
         if (!error && response.statusCode === 200) {
-          console.log(body)
+          console.log(body);
+	  document.getElementById('status').innerText = "Data saved to server";
 	} else {
-            console.log("error: " + error)
+          console.log("error: " + error);
+          document.getElementById('status').innerText = "ERROR: Data not saved (" + error + ")";
         }
       });
     data = {"start_ts": null, "end_ts": null, "metadata": data.metadata, "eeg": [[], [], [], []], "ppg": [], "accel": []}; 
   } else {
     console.log("starting recording");
+    document.getElementById('status').innerText = "Recording";
     recording = true;
     button.innerText = "Stop Recording";
     //button.style.backgroundColor = "#A23";
