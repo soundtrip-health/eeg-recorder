@@ -9,7 +9,9 @@ const url = require('url');
 //console.log('csrf token: ' + document.querySelector('meta[name="token"]').content);
 
 const BLINK_THRESHOLD = 95;
+
 let recording = false;
+
 var data = {"start_ts": null, "end_ts": null, "metadata": null, "eeg": [[], [], [], []], "ppg": [], "accel": []};
 
 const DATA_URL = url.resolve(document.location.href, '/data');
@@ -70,10 +72,10 @@ async function main() {
   document.getElementById("headset-name").innerText = client.deviceName;
   //document.getElementById('record_button').disabled = false;
 
-  var last_frame = 0.0;
+  let last_frame = 0.0;
   const iter_update = 20;
-  var mean_fr = 0.0;
-  var iter = 0;
+  let mean_fr = 0.0;
+  let iter = 0;
 
   client.eegReadings.subscribe(reading => {
     rmsFields[reading.electrode].textContent = CalculateRMS(reading.samples).toFixed(1)
@@ -107,8 +109,6 @@ async function main() {
       document.getElementById('batteryLevel').innerText = reading.batteryLevel.toFixed(2) + '%';
   });
   await client.deviceInfo().then((deviceInfo) => {
-      //document.getElementById('hardware-version').innerText = deviceInfo.hw;
-      //document.getElementById('firmware-version').innerText = deviceInfo.fw;
       data.metadata = deviceInfo;
       data.metadata.userid = document.querySelector('meta[name="userid"]').content;
       data.metadata.username = document.querySelector('meta[name="username"]').content;
