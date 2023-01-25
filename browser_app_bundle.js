@@ -31,12 +31,12 @@ class EegDevice {
     this.graphTitles = [1, 2, 3, 4].map((x) => document.getElementById('electrode-name' + x + '-' + divId));
     this.rmsFields = [1, 2, 3, 4].map((x) => document.getElementById('rms' + x + '-' + divId));
     this.canvases = [1, 2, 3, 4].map((x) => document.getElementById('electrode' + x + '-' + divId));
-    this.nameElem = document.getElementById('headset-name' + divId);
-    this.blinkStatElem = document.getElementById('blinkStatus' + divId);
-    this.frameRateElem = document.getElementById('framerate' + divId);
+    this.nameElem = document.getElementById('headset-name-' + divId);
+    this.blinkStatElem = document.getElementById('blinkStatus-' + divId);
+    this.frameRateElem = document.getElementById('framerate-' + divId);
     this.accelIds = ['x', 'y', 'z'].map((x) => document.getElementById('acc-' + x + '-' + divId));
     this.ppgIds = ['0', '1', '2'].map((x) => document.getElementById('ppg-' + x + '-' + divId));
-    this.batteryElem = document.getElementById('batteryLevel');  
+    this.batteryElem = document.getElementById('batteryLevel-' + divId);  
     this.data = {"start_ts": null, "end_ts": null, "metadata": null, "eeg": [[], [], [], []], "ppg": [], "accel": []};
   }
 
@@ -95,7 +95,7 @@ class EegDevice {
     let mean_fr = 0.0;
     let iter = 0;
     this.client.eegReadings.subscribe(reading => {
-      rmsFields[reading.electrode].textContent = calculateRms(reading.samples).toFixed(1)
+      this.rmsFields[reading.electrode].textContent = calculateRms(reading.samples).toFixed(1)
       if (reading.electrode === 1) {
         // Update blink status
         if (Math.max.apply(null, reading.samples) >= BLINK_THRESHOLD) {
@@ -129,7 +129,7 @@ class EegDevice {
         this.data.metadata = deviceInfo;
         this.data.metadata.userid = document.querySelector('meta[name="userid"]').content;
         this.data.metadata.username = document.querySelector('meta[name="username"]').content;
-        this.data.metadata.deviceName = client.deviceName;
+        this.data.metadata.deviceName = this.client.deviceName;
     });
     this.client.accelerometerData.subscribe((accel) => {
       this.accelIds[0].innerText = accel.samples[2].x.toFixed(3);
@@ -175,7 +175,7 @@ window.toggle_record = function () {
             document.getElementById('status').innerText = "ERROR: Data not saved (" + error + ")";
           }
         });
-      device.data = {"start_ts": null, "end_ts": null, "metadata": data.metadata, "eeg": [[], [], [], []], "ppg": [], "accel": []};
+      device.data = {"start_ts": null, "end_ts": null, "metadata": device.data.metadata, "eeg": [[], [], [], []], "ppg": [], "accel": []};
     });
   } else {
     console.log("starting recording");
@@ -195,7 +195,8 @@ window.toggle_record = function () {
 var nextDivId = 0;
 window.connect = function () {
   console.log(nextDivId);
-  const device = new EegDevice(nextDivId++);
+  const device = new EegDevice(nextDivId);
+  nextDivId++;
   device.show();
   device.start();
   connectedDevices.push(device);
