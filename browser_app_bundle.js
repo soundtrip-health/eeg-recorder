@@ -26,7 +26,7 @@ const connectedDevices = [];
 
 class EegDevice {
   constructor(divId) {
-    this.deviceId = null;
+    this.deviceName = null;
     this.div = document.getElementById('headset-' + divId);
     this.graphTitles = [1, 2, 3, 4].map((x) => document.getElementById('electrode-name' + x + '-' + divId));
     this.rmsFields = [1, 2, 3, 4].map((x) => document.getElementById('rms' + x + '-' + divId));
@@ -75,7 +75,7 @@ class EegDevice {
     }
   }
 
-  async start() {
+  async connect() {
     this.canvasCtx = this.canvases.map((canvas) => canvas.getContext('2d'));
     // initiate the web-bluetooth conection request
     this.client = new Muse.MuseClient();
@@ -85,11 +85,24 @@ class EegDevice {
       console.log(status ? 'Connected!' : 'Disconnected');
     });
     await this.client.connect();
-    await this.client.start();
-    this.deviceId = this.client.deviceName;
-    
-    this.nameElem.innerText = this.client.deviceName;
+    this.deviceName = this.client.deviceName;
+  }
 
+  disconnect() {
+    this.client.disconnect();
+  }
+
+  async pause() {
+    this.client.pause();
+  }
+
+  async resume() {
+    this.client.resume();
+  }
+
+  async start() {
+    this.nameElem.innerText = this.deviceName;
+    await this.client.start();
     let last_frame = 0.0;
     const iter_update = 20;
     let mean_fr = 0.0;
@@ -193,12 +206,19 @@ window.toggle_record = function () {
 // web-bluetooth can only be started by a user gesture.
 // This funciton is called by an html button
 var nextDivId = 0;
-window.connect = function () {
-  console.log(nextDivId);
+window.connect = async function () {
   const device = new EegDevice(nextDivId);
-  nextDivId++;
-  device.show();
-  device.start();
-  connectedDevices.push(device);
+  console.log('connecting...');
+  await device.connect();
+  if (connectedDevices.some(o => o.deviceName === device.deviceName)) {
+    console.log('Device ' + device.name + ' is already connected.');
+    window.alert('Device ' + device.name + ' is already connected.');
+    //document.getElementById('status').innerText = 'ERROR: Device ' + device.name + ' already connected.';
+  } else {
+    nextDivId++;
+    device.show();
+    device.start();
+    connectedDevices.push(device);
+  }
 }
 
