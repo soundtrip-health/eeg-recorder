@@ -15,25 +15,28 @@ block content
     div(class="inner")
       button(type="button" id="toggle_record" onclick="toggle_record()") #[span(id="record_button") Start Recording]
 
-  div(id="headset")
-    div 
-      p Name: #[span(id="headset-name") NA], 
-        span Battery: #[span(id="batteryLevel") NA], 
-        span Frame Rate: #[span(id="framerate") NA], 
-        span Accel: x=#[span(id="acc-x") NA], y=#[span(id="acc-y") NA], z=#[span(id="acc-z") NA], 
-        span Blink Status: #[span(id="blinkStatus") NA]
+  - var ids = Array.from({length: 4}, (_, i) => i)
+  for id in ids
+    div(id="headset-" + id, style="display: none")
+      div 
+        p Name: #[span(id="headset-name-" + id) NA], 
+          span Battery: #[span(id="batteryLevel-" + id) NA], 
+          span Frame Rate: #[span(id="framerate-" + id) NA], 
+          span Accel: x=#[span(id="acc-x-" + id) NA], y=#[span(id="acc-y-" + id) NA], z=#[span(id="acc-z-" + id) NA], 
+          span Blink Status: #[span(id="blinkStatus-" + id) NA]
 
-    div(id="electrode-section")
-      div(class="electrode-item")
-        h4 #[span(id="electrode-name1") E1] RMS: #[span(id="rms1") NA]
-        canvas(id="electrode1")
-      div(class="electrode-item")
-        h4 #[span(id="electrode-name2") E2] RMS: #[span(id="rms2") NA]
-        canvas(id="electrode2")
-      div(class="electrode-item")
-        h4 #[span(id="electrode-name3") E3] RMS: #[span(id="rms3") NA]
-        canvas(id="electrode3")
-      div(class="electrode-item")
-        h4 #[span(id="electrode-name4") E4] RMS: #[span(id="rms4") NA]
-        canvas(id="electrode4")
+      div(id="electrode-section-" + id)
+        div(class="electrode-item")
+          h4 #[span(id="electrode-name1-" + id) E1] RMS: #[span(id="rms1-" + id) NA]
+          canvas(id="electrode1-" + id)
+        div(class="electrode-item")
+          h4 #[span(id="electrode-name2-" + id) E2] RMS: #[span(id="rms2-" + id) NA]
+          canvas(id="electrode2-" + id)
+        div(class="electrode-item")
+          h4 #[span(id="electrode-name3-" + id) E3] RMS: #[span(id="rms3-" + id) NA]
+          canvas(id="electrode3-" + id)
+        div(class="electrode-item")
+          h4 #[span(id="electrode-name4-" + id) E4] RMS: #[span(id="rms4-" + id) NA]
+          canvas(id="electrode4-" + id)
+
   div(id="status") 
