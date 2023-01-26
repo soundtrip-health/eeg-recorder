@@ -209,7 +209,18 @@ var nextDivId = 0;
 window.connect = async function () {
   const device = new EegDevice(nextDivId);
   console.log('connecting...');
-  await device.connect();
+  
+  try {
+    await device.connect();
+  } catch (e) {
+    if (e instanceof DOMException) {
+      console.log('User canceled connection request.');
+      return;
+    } else {
+      throw e;
+    }
+  }
+
   if (connectedDevices.some(o => o.deviceName === device.deviceName)) {
     console.log('Device ' + device.name + ' is already connected.');
     window.alert('Device ' + device.name + ' is already connected.');
