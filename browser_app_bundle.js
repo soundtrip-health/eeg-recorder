@@ -158,6 +158,27 @@ class EegDevice {
       }
     });
   }
+
+  upload_data() {
+    request({
+            url: DATA_URL,
+            method: "POST",
+	    // the token needs to be in both header and body?
+            body: {_csrf: document.querySelector('meta[name="token"]').content},
+            headers: {'X-CSRF-Token': document.querySelector('meta[name="token"]').content},
+	    json: {device: this.data.metadata.deviceName, data: this.data}
+            },
+      function (error, response, body) {
+        if (!error && response.statusCode === 200) {
+          console.log(body);
+          document.getElementById('status').innerText = "Data saved to server";
+        } else {
+          console.log("error: " + error);
+          document.getElementById('status').innerText = "ERROR: Data not saved (" + error + ")";
+        }
+      });
+    this.data = {"start_ts": null, "end_ts": null, "metadata": this.data.metadata, "eeg": [[], [], [], []], "ppg": [], "accel": []};
+  }
 }
 
 window.toggle_record = function () {
@@ -168,27 +189,8 @@ window.toggle_record = function () {
     recording = false;
     button.innerText = "Start Recording";
     //button.style.backgroundColor = "#232";
-
-    // FIXME: should be a class method
     connectedDevices.forEach((device) => {
-      device.data['end_ts'] = Date.now();
-      request({
-              url: DATA_URL,
-              method: "POST",
-              body: {_csrf: document.querySelector('meta[name="token"]').content},
-              json: device.data, 
-              headers: {'X-CSRF-Token': document.querySelector('meta[name="token"]').content}
-              },
-        function (error, response, body) {
-          if (!error && response.statusCode === 200) {
-            console.log(body);
-            document.getElementById('status').innerText = "Data saved to server";
-          } else {
-            console.log("error: " + error);
-            document.getElementById('status').innerText = "ERROR: Data not saved (" + error + ")";
-          }
-        });
-      device.data = {"start_ts": null, "end_ts": null, "metadata": device.data.metadata, "eeg": [[], [], [], []], "ppg": [], "accel": []};
+      device.upload_data();
     });
   } else {
     console.log("starting recording");
