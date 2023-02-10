@@ -143,6 +143,7 @@ class EegDevice {
         this.data.metadata.userid = document.querySelector('meta[name="userid"]').content;
         this.data.metadata.username = document.querySelector('meta[name="username"]').content;
         this.data.metadata.deviceName = this.client.deviceName;
+	this.data.metadata.electrodeNames = Muse.channelNames;
     });
     this.client.accelerometerData.subscribe((accel) => {
       this.accelIds[0].innerText = accel.samples[2].x.toFixed(3);
