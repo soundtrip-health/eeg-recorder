@@ -60,6 +60,7 @@ router.post('/data', function(req, res, next) {
 router.get('/data', function(req, res, next) {
   const user_dir = path.join(db.data_dir, req.user.username);
   fs.readdir(user_dir, (err, files) => {
+    if (!files) files = [];
     files = files.filter(fn => fn.endsWith('.json'));
     //console.dir(files);
     res.render('data', {user: req.user, title: "Data", files: files});
