@@ -19,6 +19,14 @@ const calculateRms = function (arr) {
 // Simple function to take the average of an array
 const average = arr => arr.reduce((p, c) => p + c, 0) / arr.length;
 
+const DATA_STRUCT = {"start_ts": null, 
+                     "end_ts": null, 
+	             "metadata": null, 
+	             "eeg": [[], [], [], []], 
+	             "ppg": [], 
+	             "accel": [],
+	             "gyro": []};
+
 // recording is a global, as recording is triggered by one button for all devices
 var recording = false;
 
@@ -37,7 +45,7 @@ class EegDevice {
     this.accelIds = ['x', 'y', 'z'].map((x) => document.getElementById('acc-' + x + '-' + divId));
     this.ppgIds = ['0', '1', '2'].map((x) => document.getElementById('ppg-' + x + '-' + divId));
     this.batteryElem = document.getElementById('batteryLevel-' + divId);  
-    this.data = {"start_ts": null, "end_ts": null, "metadata": null, "eeg": [[], [], [], []], "ppg": [], "accel": []};
+    this.data = DATA_STRUCT;
   }
 
   hide() {
@@ -152,6 +160,10 @@ class EegDevice {
       if(recording) {
         this.data['accel'].push(accel);
       }
+    this.client.gyroscopeData.subscribe((gyro) => {
+      if(recording) {
+        this.data['gyro'].push(gyro);
+      }
     });
     this.client.ppgReadings.subscribe((ppgreading) => {
       if(recording) {
@@ -178,7 +190,7 @@ class EegDevice {
           document.getElementById('status').innerText = "ERROR: Data not saved (" + error + ")";
         }
       });
-    this.data = {"start_ts": null, "end_ts": null, "metadata": this.data.metadata, "eeg": [[], [], [], []], "ppg": [], "accel": []};
+    this.data = DATA_STRUCT;
   }
 }
 
