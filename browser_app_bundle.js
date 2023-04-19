@@ -160,6 +160,7 @@ class EegDevice {
       if(recording) {
         this.data['accel'].push(accel);
       }
+    });
     this.client.gyroscopeData.subscribe((gyro) => {
       if(recording) {
         this.data['gyro'].push(gyro);
