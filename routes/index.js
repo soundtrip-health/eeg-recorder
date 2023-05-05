@@ -38,7 +38,8 @@ router.post('/data', function(req, res, next) {
   } catch(err) {
     console.log(err);
   }
-  const filename = path.join(user_dir, req.body.device + '_' + req.body.data.start_ts + '.json')
+  let d = new Date(req.body.data.start_ts);
+  const filename = path.join(user_dir, req.body.device + '_' + d.toISOString() + '.json')
   fs.writeFile(filename, JSON.stringify(req.body.data), 'utf8', err => {
     if (err) {
       console.error(err);
