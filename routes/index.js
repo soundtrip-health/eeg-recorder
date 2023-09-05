@@ -4,17 +4,6 @@ const db = require('../db');
 const fs = require('fs');
 const path = require('node:path');
 
-let CalculateRMS = function (arr) {
-
-  // calculate the root mean squared of an array
-
-  let Squares = arr.map((val) => (val * val));
-  let Sum = Squares.reduce((acum, val) => (acum + val));
-
-  Mean = Sum / arr.length;
-  return Math.sqrt(Mean);
-}
-
 var router = express.Router();
 
 var ensureLoggedIn = ensureLogIn();
