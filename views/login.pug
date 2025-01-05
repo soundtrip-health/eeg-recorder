@@ -1,21 +1,30 @@
 extends layout
 
 block content
-  h1 LOGIN
- 
-  if messages.error 
-      p!= messages.error
-  
-  form(action="/login", method="post")
-      legend User Name 
-          input(type="text" placeholder="Enter Username" id="username" name="username" required)
-          br
-      legend Password 
-          input(type="password" placeholder="Enter Password" id="password" name="password" required)
-          br
-      input(type="hidden" name="_csrf" value= csrfToken)
-      input(type="submit" value="Login")
-  
-  //p Or create new Account   
-  //a(href="/signup") sign up
+  .container.mt-5
+    .row.justify-content-center
+      .col-md-6
+        .card.shadow
+          .card-body
+            h1.text-center.mb-4 Login
+            
+            if messages.error 
+              .alert.alert-danger!= messages.error
+            
+            form(action="/login", method="post")
+              .mb-3
+                label.form-label(for="username") Username
+                input.form-control(type="text" placeholder="Enter Username" id="username" name="username" required)
+              
+              .mb-3
+                label.form-label(for="password") Password
+                input.form-control(type="password" placeholder="Enter Password" id="password" name="password" required)
+              
+              input(type="hidden" name="_csrf" value= csrfToken)
+              button.btn.btn-primary.w-100(type="submit") Login
+              
+              //- Uncomment if you want to add signup link
+              //- .mt-3.text-center
+              //-   p.mb-0 Don't have an account? 
+              //-   a(href="/signup") Sign up
 
