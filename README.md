@@ -1,5 +1,26 @@
 # eeg-recorder
-Simple bluetooth EEG Recorder app for Muse EEG headband devices. All the hard work is done by [muse-js](https://github.com/urish/muse-js). 
+Simple bluetooth EEG Recorder app for Muse EEG headband devices. All the hard work is done by [muse-js](https://github.com/urish/muse-js).
+
+## Setup
+
+The following is what I'm using in Ubuntu 24 LTS.
+
+```bash
+# Use nodesource nodejs/npm packages (ubuntu's can get quite out of date)
+curl -sL https://deb.nodesource.com/setup_16.x -o /tmp/nodesource_setup.sh
+# Inspect the script
+cat /tmp/nodesource_setup.sh
+# install
+sudo bash /tmp/nodesource_setup.sh
+sudo apt install nodejs 
+# install browserify
+sudo npm install -g browserify
+# Install dependencies
+cd ~/git/eeg-record
+npm install
+```
+
+Note that you may see some "vulnerabilities" from the audit that npm install runs. The issues that I see are meaningless in the context of how the packages are used (to prepare a webapp). More info on the [npm audit issues](https://overreacted.io/npm-audit-broken-by-design/). BTW, the audit messages also often lye about a fix being availabale-- neither `npm audit fix` nor `npm audit fix --force` fixes the two vulnerabilities that it claims it can fix.
 
 ## Running the server 
 

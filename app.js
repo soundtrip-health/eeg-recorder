@@ -24,7 +24,7 @@ app.use(bodyParser.json({limit: JSON_PAYLOAD_MAX, extended: true}))
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'jade');
+app.set('view engine', 'pug');
 
 app.use(logger('dev'));
 app.use('/favicon.ico', express.static('public/images/favicon.ico'));
