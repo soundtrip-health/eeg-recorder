@@ -177,9 +177,6 @@ class EegDevice {
     request({
             url: DATA_URL,
             method: "POST",
-	    // the token needs to be in both header and body?
-            body: {_csrf: document.querySelector('meta[name="token"]').content},
-            headers: {'X-CSRF-Token': document.querySelector('meta[name="token"]').content},
 	    json: {device: this.data.metadata.deviceName, data: this.data}
             },
       function (error, response, body) {

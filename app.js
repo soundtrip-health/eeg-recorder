@@ -4,7 +4,6 @@ const bodyParser = require('body-parser');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
-const csrf = require('csurf');
 const passport = require('passport');
 const logger = require('morgan');
 
@@ -38,7 +37,6 @@ app.use(session({
   saveUninitialized: false, // don't create session until something stored
   store: new SQLiteStore({ db: 'sessions.db', dir: './var/db' })
 }));
-app.use(csrf());
 app.use(passport.authenticate('session'));
 app.use(function(req, res, next) {
   var msgs = req.session.messages || [];
@@ -47,11 +45,6 @@ app.use(function(req, res, next) {
   req.session.messages = [];
   next();
 });
-app.use(function(req, res, next) {
-  res.locals.csrfToken = req.csrfToken();
-  next();
-});
-
 
 app.use('/', indexRouter);
 app.use('/', authRouter);
