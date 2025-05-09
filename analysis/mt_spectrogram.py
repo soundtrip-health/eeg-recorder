@@ -202,7 +202,7 @@ def calc_mts_segment(data_segment, DPSS_tapers, nfft, freq_inds, detrend_opt):
         data_segment = detrend(data_segment, type=detrend_opt)
 
     # Multiply data by dpss tapers (STEP 2)
-    tapered_data = np.multiply(np.mat(data_segment).T, np.mat(DPSS_tapers.T))
+    tapered_data = np.multiply(np.asmatrix(data_segment).T, np.asmatrix(DPSS_tapers.T))
 
     # Compute the FFT (STEP 3)
     fft_data = np.fft.fft(tapered_data, nfft, axis=0)
