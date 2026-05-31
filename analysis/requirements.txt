@@ -1,0 +1,14 @@
+# Core dependencies for EDF conversion
+# Install with: pip install -r requirements.txt
+
+# Data processing
+numpy>=2.2.0
+pandas>=2.3.0
+scipy>=1.16.0
+
+# EDF file format support
+pyedflib>=0.1.42
+
+# Complexity analysis tools
+ordpy>=1.2.0
+antropy>=0.1.9

@@ -8,12 +8,21 @@ var router = express.Router();
 
 var ensureLoggedIn = ensureLogIn();
 
-// GET home page
+// GET home page — serves the Vite-built SPA shell (dist/index.html).
+// In dev, run `npm run dev` (Vite on :5173) and hit http://localhost:5173
+// directly; it proxies /login, /logout, /data, /auth/* back to this server.
 router.get('/', ensureLoggedIn, function(req, res, next) {
-  if (!req.user) 
-    return res.render('login');
-  console.log(req.user);
-  res.render('index', {user: req.user, title: "Home", num_headsets: 3});
+  const indexHtml = path.join(__dirname, '..', 'dist', 'index.html');
+  fs.access(indexHtml, fs.constants.R_OK, (err) => {
+    if (err) {
+      return res.status(503).send(
+        '<h1>SPA bundle not built.</h1>' +
+        '<p>Run <code>npm run build</code> (or <code>npm run dev</code> and visit ' +
+        '<a href="http://localhost:5173">http://localhost:5173</a>).</p>'
+      );
+    }
+    res.sendFile(indexHtml);
+  });
 });
 
 

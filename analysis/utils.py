@@ -848,3 +848,448 @@ def inspect_resting_eeg(edf_path, eeg_channels=None, time_window=(0, 30), sfreq=
         print(f"  {ch}: {artifact_pct[i]:.1f}% bad epochs, mean PtP={mean_ptp[i]:.1f}μV [{quality}]")
     
     return fig, raw
+
+
+def _autoscale_y(ax, margin=0.05):
+    """Rescale y-axis to fit only the data visible within the current x-limits."""
+    xlim = ax.get_xlim()
+    y_vals = []
+    for line in ax.get_lines():
+        xd, yd = np.asarray(line.get_data())
+        mask = (xd >= xlim[0]) & (xd <= xlim[1])
+        if mask.any():
+            y_vals.append(yd[mask])
+    for coll in ax.collections:
+        for path in coll.get_paths():
+            verts = path.vertices
+            mask = (verts[:, 0] >= xlim[0]) & (verts[:, 0] <= xlim[1])
+            if mask.any():
+                y_vals.append(verts[mask, 1])
+    if y_vals:
+        all_y = np.concatenate(y_vals)
+        ymin, ymax = np.nanmin(all_y), np.nanmax(all_y)
+        pad = (ymax - ymin) * margin if ymax > ymin else 1.0
+        ax.set_ylim(ymin - pad, ymax + pad)
+
+
+def _bandpass_filter_ppg(ppg_signal, fs=PPG_FS, lowcut=0.5, highcut=3.5):
+    """Bandpass filter PPG signal for heart rate detection (0.5–3.5 Hz ≈ 30–210 BPM)."""
+    nyq = 0.5 * fs
+    b, a = signal.butter(3, [lowcut / nyq, highcut / nyq], btype='band')
+    return signal.filtfilt(b, a, ppg_signal)
+
+
+def detect_ppg_peaks(ppg_df, channel='ppg1', fs=PPG_FS):
+    """
+    Detect heartbeat peaks in a PPG signal.
+
+    Parameters
+    ----------
+    ppg_df : pd.DataFrame
+        PPG data from load_eeg (columns: ppg0, ppg1, ppg2)
+    channel : str
+        PPG channel to use. 'ppg1' (infrared) typically gives the best cardiac signal.
+    fs : float
+        Sampling frequency
+
+    Returns
+    -------
+    peaks : np.ndarray
+        Indices of detected peaks in ppg_df
+    filtered : np.ndarray
+        Bandpass-filtered PPG signal
+    """
+    raw = ppg_df[channel].values.astype(np.float64)
+    detrended = signal.detrend(raw)
+    filtered = _bandpass_filter_ppg(detrended, fs=fs)
+
+    min_distance = int(0.3 * fs)  # max ~200 BPM
+    peaks, _ = signal.find_peaks(
+        filtered,
+        distance=min_distance,
+        height=np.std(filtered) * 0.3,
+        prominence=np.std(filtered) * 0.2,
+    )
+    return peaks, filtered
+
+
+def plot_ppg(ppg_df, time_window=None, fs=PPG_FS):
+    """
+    Plot raw PPG waveforms for all channels.
+
+    Parameters
+    ----------
+    ppg_df : pd.DataFrame
+        PPG data from load_eeg
+    time_window : tuple, optional
+        (start, end) in seconds. If None, plots the full recording.
+    fs : float
+        Sampling frequency
+    """
+    times = ppg_df.index.values
+    channels = ppg_df.columns.tolist()
+
+    if time_window is not None:
+        mask = (times >= time_window[0]) & (times <= time_window[1])
+    else:
+        mask = np.ones(len(times), dtype=bool)
+
+    channel_labels = {'ppg0': 'Ambient', 'ppg1': 'Infrared', 'ppg2': 'Red'}
+
+    fig, axes = plt.subplots(len(channels), 1, figsize=(14, 3 * len(channels)), sharex=True)
+    if len(channels) == 1:
+        axes = [axes]
+
+    for ax, ch in zip(axes, channels):
+        label = channel_labels.get(ch, ch)
+        ax.plot(times[mask], ppg_df[ch].values[mask], linewidth=0.5, color='steelblue')
+        ax.set_ylabel(f'{label}\n(a.u.)')
+        ax.set_title(f'PPG Channel: {label} ({ch})')
+        ax.grid(True, alpha=0.3)
+
+    axes[-1].set_xlabel('Time (s)')
+    window_label = f'{time_window[0]}–{time_window[1]}s' if time_window else 'Full Recording'
+    fig.suptitle(f'Raw PPG Signals — {window_label}', fontsize=14, y=1.01)
+    plt.tight_layout()
+    plt.show()
+    return fig
+
+
+def plot_heart_rate(ppg_df, channel='ppg1', window_sec=15, medfilt_kernel=5,
+                    time_window=None, fs=PPG_FS):
+    """
+    Compute and plot heart rate derived from PPG peak detection.
+
+    Shows three panels:
+      1. Filtered PPG with detected heartbeat peaks
+      2. Instantaneous heart rate with a sliding-window mean ± std
+      3. Inter-beat interval (IBI) tachogram
+
+    Parameters
+    ----------
+    ppg_df : pd.DataFrame
+        PPG data from load_eeg
+    channel : str
+        PPG channel to use (default: 'ppg1', infrared)
+    window_sec : float
+        Sliding-window duration in seconds for smoothing (default: 15)
+    medfilt_kernel : int or None
+        Median filter kernel size for outlier removal on IBI/HR series.
+        Must be odd (3 or 5 work well). Set to None to disable.
+    time_window : tuple, optional
+        (start, end) in seconds. If None, plots the full recording.
+    fs : float
+        Sampling frequency
+    """
+    peaks, filtered = detect_ppg_peaks(ppg_df, channel=channel, fs=fs)
+    times = ppg_df.index.values
+
+    if len(peaks) < 2:
+        print("Not enough peaks detected to compute heart rate.")
+        return None
+
+    peak_times = times[peaks]
+    ibis = np.diff(peak_times)
+    instant_hr = 60.0 / ibis
+    hr_times = peak_times[1:]
+
+    valid = (instant_hr >= 30) & (instant_hr <= 200)
+    hr_times = hr_times[valid]
+    instant_hr = instant_hr[valid]
+    ibi_ms = ibis[valid] * 1000
+
+    if medfilt_kernel is not None and len(ibi_ms) >= medfilt_kernel:
+        ibi_ms = signal.medfilt(ibi_ms, kernel_size=medfilt_kernel)
+        instant_hr = 60000.0 / ibi_ms
+
+    # Sliding-window stats for HR and IBI
+    win_centers = []
+    win_hr_means, win_hr_stds = [], []
+    win_ibi_means, win_ibi_stds = [], []
+    if len(hr_times) > 1:
+        step = window_sec / 2
+        t = hr_times[0]
+        while t + window_sec <= hr_times[-1]:
+            wm = (hr_times >= t) & (hr_times < t + window_sec)
+            if wm.sum() >= 2:
+                win_centers.append(t + window_sec / 2)
+                win_hr_means.append(np.mean(instant_hr[wm]))
+                win_hr_stds.append(np.std(instant_hr[wm]))
+                win_ibi_means.append(np.mean(ibi_ms[wm]))
+                win_ibi_stds.append(np.std(ibi_ms[wm]))
+            t += step
+
+    fig, axes = plt.subplots(3, 1, figsize=(14, 10),
+                             gridspec_kw={'height_ratios': [1.5, 1, 1]})
+
+    ax = axes[0]
+    ax.plot(times, filtered, linewidth=0.5, color='steelblue', label='Filtered PPG')
+    ax.plot(times[peaks], filtered[peaks], 'rv', markersize=5,
+            label=f'Peaks (n={len(peaks)})')
+    ax.set_ylabel('Amplitude (a.u.)')
+    ax.set_title(f'Filtered PPG with Detected Heartbeats ({channel})')
+    ax.legend(loc='upper right')
+    ax.grid(True, alpha=0.3)
+
+    ax = axes[1]
+    ax.plot(hr_times, instant_hr, 'o-', markersize=2, linewidth=0.8,
+            color='coral', alpha=0.6, label='Instantaneous HR')
+    if win_centers:
+        wm_arr = np.array(win_hr_means)
+        ws_arr = np.array(win_hr_stds)
+        ax.plot(win_centers, wm_arr, linewidth=2, color='darkred',
+                label=f'{window_sec}s window mean')
+        ax.fill_between(win_centers, wm_arr - ws_arr, wm_arr + ws_arr,
+                        alpha=0.2, color='darkred')
+    ax.set_ylabel('Heart Rate (BPM)')
+    ax.set_title('Heart Rate Over Time')
+    ax.legend(loc='upper right')
+    ax.grid(True, alpha=0.3)
+
+    ax = axes[2]
+    ax.plot(hr_times, ibi_ms, 'o-', markersize=2, linewidth=0.8, color='teal',
+            alpha=0.6, label='IBI')
+    if win_centers:
+        im_arr = np.array(win_ibi_means)
+        is_arr = np.array(win_ibi_stds)
+        ax.plot(win_centers, im_arr, linewidth=2, color='darkslategray',
+                label=f'{window_sec}s window mean')
+        ax.fill_between(win_centers, im_arr - is_arr, im_arr + is_arr,
+                        alpha=0.2, color='darkslategray')
+    ax.set_ylabel('IBI (ms)')
+    ax.set_xlabel('Time (s)')
+    ax.set_title('Inter-Beat Interval Tachogram')
+    ax.legend(loc='upper right')
+    ax.grid(True, alpha=0.3)
+
+    if time_window is not None:
+        for a in axes:
+            a.set_xlim(time_window)
+            _autoscale_y(a)
+
+    plt.tight_layout()
+    plt.show()
+
+    tw_mask = np.ones(len(instant_hr), dtype=bool)
+    if time_window is not None:
+        tw_mask = (hr_times >= time_window[0]) & (hr_times <= time_window[1])
+    hr_view = instant_hr[tw_mask]
+
+    if len(hr_view) > 0:
+        window_label = f'{time_window[0]}–{time_window[1]}s' if time_window else 'full recording'
+        print(f"\nHeart Rate Summary ({channel}, {window_label}):")
+        print(f"  Mean HR: {np.mean(hr_view):.1f} BPM")
+        print(f"  Std HR:  {np.std(hr_view):.1f} BPM")
+        print(f"  Min HR:  {np.min(hr_view):.1f} BPM")
+        print(f"  Max HR:  {np.max(hr_view):.1f} BPM")
+        print(f"  Detected beats: {tw_mask.sum()}")
+        print(f"  Recording duration: {times[-1] - times[0]:.1f} s")
+
+    return fig
+
+
+def plot_hrv(ppg_df, channel='ppg1', window_sec=15, medfilt_kernel=5,
+             time_window=None, fs=PPG_FS):
+    """
+    Compute and plot heart rate variability (HRV) using a sliding window.
+
+    Metrics per window:
+      - SDNN:  standard deviation of NN (beat-to-beat) intervals
+      - RMSSD: root mean square of successive NN-interval differences
+      - pNN50: percentage of successive intervals differing by >50 ms
+
+    Parameters
+    ----------
+    ppg_df : pd.DataFrame
+        PPG data from load_eeg
+    channel : str
+        PPG channel to use (default: 'ppg1', infrared)
+    window_sec : float
+        Window duration in seconds for HRV computation (default: 15)
+    medfilt_kernel : int or None
+        Median filter kernel size for outlier removal on IBI series.
+        Must be odd (3 or 5 work well). Set to None to disable.
+    time_window : tuple, optional
+        (start, end) in seconds. If None, plots the full recording.
+    fs : float
+        Sampling frequency
+    """
+    peaks, _ = detect_ppg_peaks(ppg_df, channel=channel, fs=fs)
+    times = ppg_df.index.values
+
+    if len(peaks) < 3:
+        print("Not enough peaks detected to compute HRV.")
+        return None
+
+    peak_times = times[peaks]
+    ibi_ms = np.diff(peak_times) * 1000
+    valid_mask = (ibi_ms >= 300) & (ibi_ms <= 2000)
+
+    if medfilt_kernel is not None and np.sum(valid_mask) >= medfilt_kernel:
+        ibi_ms[valid_mask] = signal.medfilt(ibi_ms[valid_mask], kernel_size=medfilt_kernel)
+
+    step = window_sec / 2
+    win_t, sdnn, rmssd, pnn50, mean_hr = [], [], [], [], []
+
+    t = peak_times[1]
+    while t + window_sec <= peak_times[-1]:
+        wm = (peak_times[1:] >= t) & (peak_times[1:] < t + window_sec) & valid_mask
+        w_ibi = ibi_ms[wm]
+        if len(w_ibi) >= 3:
+            diffs = np.diff(w_ibi)
+            win_t.append(t + window_sec / 2)
+            sdnn.append(np.std(w_ibi, ddof=1))
+            rmssd.append(np.sqrt(np.mean(diffs ** 2)))
+            pnn50.append(100.0 * np.sum(np.abs(diffs) > 50) / len(diffs))
+            mean_hr.append(60000.0 / np.mean(w_ibi))
+        t += step
+
+    if not win_t:
+        print("Not enough valid data windows for HRV analysis.")
+        return None
+
+    fig, axes = plt.subplots(4, 1, figsize=(14, 12), sharex=True)
+
+    axes[0].plot(win_t, mean_hr, 'o-', color='coral', markersize=3, linewidth=1)
+    axes[0].set_ylabel('Mean HR (BPM)')
+    axes[0].set_title(f'Windowed HRV Analysis ({window_sec}s windows, {channel})')
+    axes[0].grid(True, alpha=0.3)
+
+    axes[1].plot(win_t, sdnn, 's-', color='steelblue', markersize=3, linewidth=1)
+    axes[1].set_ylabel('SDNN (ms)')
+    axes[1].set_title('SDNN — Standard Deviation of NN Intervals')
+    axes[1].grid(True, alpha=0.3)
+
+    axes[2].plot(win_t, rmssd, 'd-', color='seagreen', markersize=3, linewidth=1)
+    axes[2].set_ylabel('RMSSD (ms)')
+    axes[2].set_title('RMSSD — Root Mean Square of Successive Differences')
+    axes[2].grid(True, alpha=0.3)
+
+    axes[3].plot(win_t, pnn50, '^-', color='mediumpurple', markersize=3, linewidth=1)
+    axes[3].set_ylabel('pNN50 (%)')
+    axes[3].set_xlabel('Time (s)')
+    axes[3].set_title('pNN50 — Successive Intervals Differing by >50 ms')
+    axes[3].grid(True, alpha=0.3)
+
+    if time_window is not None:
+        for a in axes:
+            a.set_xlim(time_window)
+            _autoscale_y(a)
+
+    plt.tight_layout()
+    plt.show()
+
+    # Scope summary to time_window
+    tw_ibi_mask = valid_mask.copy()
+    if time_window is not None:
+        tw_ibi_mask &= ((peak_times[1:] >= time_window[0]) &
+                        (peak_times[1:] <= time_window[1]))
+    all_valid = ibi_ms[tw_ibi_mask]
+    window_label = f'{time_window[0]}–{time_window[1]}s' if time_window else 'full recording'
+    if len(all_valid) >= 3:
+        all_diffs = np.diff(all_valid)
+        print(f"\nOverall HRV Summary ({channel}, {window_label}):")
+        print(f"  Mean IBI:  {np.mean(all_valid):.1f} ms")
+        print(f"  SDNN:      {np.std(all_valid, ddof=1):.1f} ms")
+        print(f"  RMSSD:     {np.sqrt(np.mean(all_diffs**2)):.1f} ms")
+        print(f"  pNN50:     {100.0 * np.sum(np.abs(all_diffs) > 50) / len(all_diffs):.1f}%")
+        print(f"  Mean HR:   {60000.0 / np.mean(all_valid):.1f} BPM")
+        print(f"  Valid beats: {np.sum(tw_ibi_mask)} / {len(tw_ibi_mask)}")
+
+    return fig
+
+
+def plot_imu(motion_df, time_window=None, fs=MOT_FS):
+    """
+    Plot IMU (accelerometer and gyroscope) data with per-axis traces and magnitudes.
+
+    Parameters
+    ----------
+    motion_df : pd.DataFrame
+        Motion data from load_eeg (columns: acc_x, acc_y, acc_z, gyr_x, gyr_y, gyr_z)
+    time_window : tuple, optional
+        (start, end) in seconds. If None, plots the full recording.
+    fs : float
+        Sampling frequency
+    """
+    times = motion_df.index.values
+
+    if time_window is not None:
+        mask = (times >= time_window[0]) & (times <= time_window[1])
+    else:
+        mask = np.ones(len(times), dtype=bool)
+
+    t = times[mask]
+    acc_cols = [c for c in motion_df.columns if c.startswith('acc_')]
+    gyr_cols = [c for c in motion_df.columns if c.startswith('gyr_')]
+    has_acc = len(acc_cols) > 0
+    has_gyr = len(gyr_cols) > 0
+    n_rows = has_acc + has_gyr + 1
+
+    fig, axes = plt.subplots(n_rows, 1, figsize=(14, 3.5 * n_rows), sharex=True)
+    if n_rows == 1:
+        axes = [axes]
+    ax_idx = 0
+
+    axis_colors = {'x': '#e74c3c', 'y': '#2ecc71', 'z': '#3498db'}
+
+    if has_acc:
+        ax = axes[ax_idx]
+        for col in acc_cols:
+            c = col.split('_')[1]
+            ax.plot(t, motion_df[col].values[mask], linewidth=0.6,
+                    color=axis_colors[c], label=col, alpha=0.8)
+        ax.set_ylabel('Acceleration (g)')
+        ax.set_title('Accelerometer')
+        ax.legend(loc='upper right')
+        ax.grid(True, alpha=0.3)
+        ax_idx += 1
+
+    if has_gyr:
+        ax = axes[ax_idx]
+        for col in gyr_cols:
+            c = col.split('_')[1]
+            ax.plot(t, motion_df[col].values[mask], linewidth=0.6,
+                    color=axis_colors[c], label=col, alpha=0.8)
+        ax.set_ylabel('Angular Velocity (°/s)')
+        ax.set_title('Gyroscope')
+        ax.legend(loc='upper right')
+        ax.grid(True, alpha=0.3)
+        ax_idx += 1
+
+    ax = axes[ax_idx]
+    if has_acc:
+        acc_mag = np.sqrt(sum(motion_df[c].values[mask] ** 2 for c in acc_cols))
+        ax.plot(t, acc_mag, linewidth=0.6, color='darkorange', label='|accel|', alpha=0.8)
+    if has_gyr:
+        gyr_mag = np.sqrt(sum(motion_df[c].values[mask] ** 2 for c in gyr_cols))
+        ax.plot(t, gyr_mag, linewidth=0.6, color='darkviolet', label='|gyro|', alpha=0.8)
+    ax.set_ylabel('Magnitude')
+    ax.set_xlabel('Time (s)')
+    ax.set_title('Signal Magnitudes')
+    ax.legend(loc='upper right')
+    ax.grid(True, alpha=0.3)
+
+    window_label = f'{time_window[0]}–{time_window[1]}s' if time_window else 'Full Recording'
+    fig.suptitle(f'IMU Data — {window_label}', fontsize=14, y=1.01)
+    plt.tight_layout()
+    plt.show()
+
+    print(f"\nIMU Summary ({window_label}):")
+    if has_acc:
+        acc_mag = np.sqrt(sum(motion_df[c].values[mask] ** 2 for c in acc_cols))
+        print("  Accelerometer:")
+        for col in acc_cols:
+            vals = motion_df[col].values[mask]
+            print(f"    {col}: mean={np.mean(vals):.3f}g, std={np.std(vals):.3f}g, "
+                  f"range=[{np.min(vals):.3f}, {np.max(vals):.3f}]")
+        print(f"    |accel| mean={np.mean(acc_mag):.3f}g")
+    if has_gyr:
+        gyr_mag = np.sqrt(sum(motion_df[c].values[mask] ** 2 for c in gyr_cols))
+        print("  Gyroscope:")
+        for col in gyr_cols:
+            vals = motion_df[col].values[mask]
+            print(f"    {col}: mean={np.mean(vals):.1f}°/s, std={np.std(vals):.1f}°/s")
+        print(f"    |gyro| mean={np.mean(gyr_mag):.1f}°/s")
+
+    return fig

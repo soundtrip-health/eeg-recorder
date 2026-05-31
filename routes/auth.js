@@ -93,6 +93,18 @@ router.post('/login', passport.authenticate('local', {
 }));
 
 
+/* GET /auth/me
+ *
+ * Returns the authenticated user's id and username as JSON, or 401 if not
+ * logged in. The SPA fetches this on boot in place of the old Pug-injected
+ * <meta name="username|userid"> bridge.
+ */
+router.get('/auth/me', function(req, res) {
+  if (!req.user) return res.status(401).json({ error: 'not_authenticated' });
+  res.json({ id: req.user.id, username: req.user.username });
+});
+
+
 /* GET /logout
  *
  * This route logs the user out.

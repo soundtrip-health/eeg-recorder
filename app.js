@@ -31,6 +31,10 @@ app.use(express.json({limit: JSON_PAYLOAD_MAX, extended: true}));
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+// Vite build output (hashed JS/CSS assets, fonts, etc.). Safe to serve
+// unauthenticated — no user data is baked into the bundle; /auth/me gates
+// access at runtime.
+app.use(express.static(path.join(__dirname, 'dist')));
 app.use(session({
   secret: 'white rabbit',
   resave: false, // don't save session if unmodified
